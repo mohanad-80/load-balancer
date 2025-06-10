@@ -1,0 +1,15 @@
+{
+  "name": "load-balancer",
+  "version": "1.0.0",
+  "description": "simple server load balancer",
+  "license": "ISC",
+  "author": "Mohanad Ahmed",
+  "type": "commonjs",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}

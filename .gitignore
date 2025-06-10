@@ -1,0 +1,9 @@
+# VS Code
+.vscode/
+
+# dotenv
+*.env
+.env.*
+
+# Ignore node_modules
+node_modules/
