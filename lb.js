@@ -3,6 +3,29 @@ const app = express();
 const http = require("http");
 const port = 3000;
 
+const servers = [
+  {
+    hostname: "localhost",
+    port: 3001,
+  },
+  {
+    hostname: "localhost",
+    port: 3002,
+  },
+  {
+    hostname: "localhost",
+    port: 3003,
+  },
+];
+
+let currentServerIdx = 0;
+const getNextServer = () => {
+  const server = servers[currentServerIdx];
+  currentServerIdx += 1;
+  currentServerIdx %= servers.length;
+  return server;
+};
+
 app.use(express.json());
 
 app.get("/", (req, res) => {
@@ -14,9 +37,10 @@ app.get("/", (req, res) => {
   console.log(`Accept: ${req.headers.accept}`);
 
   // redirect the request to backend server
+  const server = getNextServer();
   const options = {
-    hostname: "localhost",
-    port: 3001,
+    hostname: server.hostname,
+    port: server.port,
     path: req.originalUrl,
     method: req.method,
     headers: req.headers,
@@ -28,30 +52,30 @@ app.get("/", (req, res) => {
     console.log(
       `\nResponse from server: HTTP/${proxyRes.httpVersion} ${proxyRes.statusCode} ${proxyRes.statusMessage}\n`
     );
-    
+
     // collect the response body
     let bodyData = "";
     proxyRes.on("data", (chunk) => {
       bodyData += chunk;
     });
-    
+
     proxyRes.on("end", () => {
       // log the response
       console.log(bodyData);
-      
+
       res.status(proxyRes.statusCode);
-      
+
       Object.keys(proxyRes.headers).forEach((key) => {
         res.setHeader(key, proxyRes.headers[key]);
       });
-      
+
       // send the response back
       res.send(bodyData);
     });
 
     // handle error while receiving the response
-    proxyRes.on('error', (err) => {
-      console.error('Proxy response error:', err);
+    proxyRes.on("error", (err) => {
+      console.error("Proxy response error:", err);
       res.status(500).end();
     });
 
