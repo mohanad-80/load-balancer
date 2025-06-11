@@ -14,7 +14,12 @@ app.get("/", (req, res) => {
   console.log("\nReplied with a hello message");
   requestsCounter += 1;
   console.log(requestsCounter);
-  res.send("Hello From Backend Server\n");
+  res.send(`Hello From Backend Server ${port}\n`);
+});
+
+app.get("/health", (req, res) => {
+  console.log("health checked and returning success");
+  res.status(200).end();
 });
 
 app.listen(port, () => {

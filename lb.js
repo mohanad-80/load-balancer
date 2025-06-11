@@ -7,24 +7,80 @@ const servers = [
   {
     hostname: "localhost",
     port: 3001,
+    healthy: true,
   },
   {
     hostname: "localhost",
     port: 3002,
+    healthy: true,
   },
   {
     hostname: "localhost",
     port: 3003,
+    healthy: true,
   },
 ];
 
 let currentServerIdx = 0;
+const MAX_RETRIES = servers.length * 2;
+
 const getNextServer = () => {
-  const server = servers[currentServerIdx];
-  currentServerIdx += 1;
-  currentServerIdx %= servers.length;
-  return server;
+  let attempts = 0;
+  while (attempts < MAX_RETRIES) {
+    const server = servers[currentServerIdx];
+    currentServerIdx = (currentServerIdx + 1) % servers.length;
+    attempts++;
+    if (server.healthy) return server;
+  }
+  return null; // All servers appear unhealthy
 };
+
+const checkServerHealth = (server) => {
+  return new Promise((resolve) => {
+    const options = {
+      hostname: server.hostname,
+      port: server.port,
+      path: "/health",
+      method: "get",
+      timeout: 2000,
+    };
+
+    const healthRequest = http.request(options, (healthRes) => {
+      healthRes.on("end", () => {
+        server.healthy = healthRes.statusCode === 200;
+      });
+      resolve(server); // resolve when response is received
+    });
+
+    healthRequest.on("timeout", () => {
+      server.healthy = false;
+      healthRequest.destroy();
+      resolve(server); // resolve on timeout
+    });
+
+    healthRequest.on("error", (err) => {
+      server.healthy = false;
+      resolve(server); // resolve on error
+    });
+
+    healthRequest.end();
+    // return server;
+  });
+};
+
+const healthCheckInterval = setInterval(async () => {
+  console.log("Running health checks...");
+  await Promise.all(servers.map(checkServerHealth));
+  // servers.forEach((server) => {
+  //   return checkServerHealth(server);
+  // });
+}, 10000);
+
+// Cleanup on exit
+process.on("SIGINT", () => {
+  clearInterval(healthCheckInterval);
+  process.exit();
+});
 
 app.use(express.json());
 
@@ -38,6 +94,13 @@ app.get("/", (req, res) => {
 
   // redirect the request to backend server
   const server = getNextServer();
+  if (!server) {
+    return res
+      .status(503)
+      .setHeader("retry-after", 15)
+      .send("No healthy servers available\n");
+  }
+
   const options = {
     hostname: server.hostname,
     port: server.port,
@@ -87,7 +150,11 @@ app.get("/", (req, res) => {
   // handle error while sending the request
   proxy.on("error", (err) => {
     console.error("Proxy error: ", err);
-    res.status(500).send("Proxy error");
+    // Mark server as unhealthy immediately on proxy error
+    server.healthy = false;
+    if (!res.headersSent) {
+      res.status(502).send("Bad Gateway");
+    }
   });
 
   // forward request body if exist
