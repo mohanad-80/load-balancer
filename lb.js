@@ -84,7 +84,7 @@ process.on("SIGINT", () => {
 
 app.use(express.json());
 
-app.get("/", (req, res) => {
+app.all(/\/(.*)/, (req, res) => {
   // Log the received request details
   console.log(`Received request from ${req.ip}`);
   console.log(`${req.method} ${req.url} HTTP/${req.httpVersion}`);
@@ -153,7 +153,7 @@ app.get("/", (req, res) => {
     // Mark server as unhealthy immediately on proxy error
     server.healthy = false;
     if (!res.headersSent) {
-      res.status(502).send("Bad Gateway");
+      res.status(502).send("Bad Gateway\n");
     }
   });
 
