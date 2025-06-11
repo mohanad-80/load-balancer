@@ -1,0 +1,7 @@
+1. Read up about HTTP keep-alive and how it is used to reuse back end connections until the timeout expires. (https://en.wikipedia.org/wiki/HTTP_persistent_connection)
+
+2. Add some Logging - think about the kinds of things that would be useful for a developer, i.e. which server did a client’s request go to, how long did the backend server take to process the request and so on.
+
+3. Build some automated tests that stand up the backend servers, a load balancer and a few clients. Check the load balancer can handle multiple clients at the same time.
+
+4. If you opted for threads, try converting it to use an async framework - or vice versa. (maybe use BullMQ)
