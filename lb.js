@@ -110,6 +110,14 @@ app.all(/\/(.*)/, (req, res) => {
   };
   delete options.headers.host;
 
+  // Set X-Forwarded-For header
+  const clientIp = req.ip || req.socket.remoteAddress;
+  if (options.headers["x-forwarded-for"]) {
+    options.headers["x-forwarded-for"] += `,${clientIp}`;
+  } else {
+    options.headers["x-forwarded-for"] = clientIp;
+  }
+
   const proxy = http.request(options, (proxyRes) => {
     // receive its response
     console.log(
