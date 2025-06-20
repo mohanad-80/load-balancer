@@ -83,6 +83,7 @@ process.on("SIGINT", () => {
 });
 
 app.use(express.json());
+app.disable('x-powered-by');
 
 app.all(/\/(.*)/, (req, res) => {
   // Log the received request details
@@ -110,12 +111,16 @@ app.all(/\/(.*)/, (req, res) => {
   };
   delete options.headers.host;
 
-  // Set X-Forwarded-For header
+  // Set X-Forwarded-* headers
   const clientIp = req.ip || req.socket.remoteAddress;
   if (options.headers["x-forwarded-for"]) {
     options.headers["x-forwarded-for"] += `,${clientIp}`;
   } else {
     options.headers["x-forwarded-for"] = clientIp;
+  }
+  options.headers["x-forwarded-proto"] = req.protocol;
+  if (req.headers.host) {
+    options.headers['x-forwarded-host'] = req.headers.host;
   }
 
   const proxy = http.request(options, (proxyRes) => {
@@ -139,6 +144,7 @@ app.all(/\/(.*)/, (req, res) => {
       Object.keys(proxyRes.headers).forEach((key) => {
         res.setHeader(key, proxyRes.headers[key]);
       });
+      res.removeHeader('x-powered-by');
 
       // send the response back
       res.send(bodyData);
