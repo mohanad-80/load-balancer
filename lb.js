@@ -1,6 +1,14 @@
 const express = require("express");
 const app = express();
 const http = require("http");
+
+// custom agent with keepAlive and a custom timeout
+const agent = new http.Agent({
+  keepAlive: true,
+  keepAliveMsecs: 45_000, // 45 seconds
+  maxSockets: 50, // allows 50 parallel connections PER backend. default is infinity but this might exhaust the backend resources.
+});
+
 const port = 3000;
 
 const servers = [
@@ -83,7 +91,37 @@ process.on("SIGINT", () => {
 });
 
 app.use(express.json());
-app.disable('x-powered-by');
+app.disable("x-powered-by");
+
+// strip connection headers.
+app.use((req, res, next) => {
+  const connectionHeaders = [
+    "connection",
+    "keep-alive",
+    "transfer-encoding",
+    "te",
+    "trailer",
+    "upgrade",
+    "proxy-authenticate",
+    "proxy-authorization",
+  ];
+
+  const connectionHeader = req.headers["connection"];
+  if (connectionHeader) {
+    connectionHeaders.push(
+      ...connectionHeader
+        .toLowerCase()
+        .split(",")
+        .map((h) => h.trim())
+    );
+  }
+
+  for (const header of connectionHeaders) {
+    delete req.headers[header];
+  }
+
+  next();
+});
 
 app.all(/\/(.*)/, (req, res) => {
   // Log the received request details
@@ -107,7 +145,11 @@ app.all(/\/(.*)/, (req, res) => {
     port: server.port,
     path: req.originalUrl,
     method: req.method,
-    headers: req.headers,
+    headers: {
+      ...req.headers,
+      connection: "keep-alive",
+    },
+    agent, // use the custom agent
   };
   delete options.headers.host;
 
@@ -120,7 +162,7 @@ app.all(/\/(.*)/, (req, res) => {
   }
   options.headers["x-forwarded-proto"] = req.protocol;
   if (req.headers.host) {
-    options.headers['x-forwarded-host'] = req.headers.host;
+    options.headers["x-forwarded-host"] = req.headers.host;
   }
 
   const proxy = http.request(options, (proxyRes) => {
@@ -144,7 +186,7 @@ app.all(/\/(.*)/, (req, res) => {
       Object.keys(proxyRes.headers).forEach((key) => {
         res.setHeader(key, proxyRes.headers[key]);
       });
-      res.removeHeader('x-powered-by');
+      res.removeHeader("x-powered-by");
 
       // send the response back
       res.send(bodyData);
@@ -155,10 +197,6 @@ app.all(/\/(.*)/, (req, res) => {
       console.error("Proxy response error:", err);
       res.status(500).end();
     });
-
-    // might need this part later if no logging
-    // of the response body is required
-    // proxyRes.pipe(res, { end: true });
   });
 
   // handle error while sending the request

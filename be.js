@@ -14,7 +14,11 @@ app.get("/", (req, res) => {
   console.log("\nReplied with a hello message");
   requestsCounter += 1;
   console.log(requestsCounter);
-  res.send(`Hello From Backend Server ${port}\n`);
+
+  // Simulate long processing
+  setTimeout(() => {
+    res.send(`Hello From Backend Server ${port}\n`);
+  }, 10_000);
 });
 
 app.get("/health", (req, res) => {
