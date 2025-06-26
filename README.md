@@ -10,7 +10,11 @@ A simple HTTP load balancer built with Node.js and Express. It distributes incom
 - **Detailed logging** of incoming requests and backend responses
 - **Handles all HTTP methods and paths**
 - **Graceful shutdown** on SIGINT
-
+- **Persistent connections** to backends using HTTP keep-alive
+- **Add relevant forward headers for proxy best practice** (client IP, protocol, host, port)
+- **Sanitize the client request and response headers for security**
+- **Customizable keep-alive and maxSockets settings**
+- **Detailed logging for errors and useful info**
 ## Getting Started
 
 ### Prerequisites
@@ -72,6 +76,15 @@ Requests will be forwarded to healthy backend servers in round-robin order.
 
 - Edit the `servers` array in `lb.js` to add or remove backend servers.
 - Adjust health check interval or timeout as needed.
+- Tune keep-alive and `maxSockets` settings in the custom HTTP agent.
+- Add or modify forwarded headers as needed for your environment.
+
+## Logging
+
+- Logs which backend server handled each request.
+- Logs backend response times.
+- Logs health check status changes for each backend.
+- Logs errors and timeouts with details.
 
 ## License
 
