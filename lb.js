@@ -54,8 +54,17 @@ const checkServerHealth = (server) => {
     };
 
     const healthRequest = http.request(options, (healthRes) => {
+      healthRes.resume();
       healthRes.on("end", () => {
+        const prevHealthState = server.healthy;
         server.healthy = healthRes.statusCode === 200;
+        if (prevHealthState !== server.healthy) {
+          console.log(
+            `Server ${server.hostname}:${server.port} is now ${
+              server.healthy ? "healthy" : "unhealthy"
+            }`
+          );
+        }
       });
       resolve(server); // resolve when response is received
     });
@@ -63,11 +72,23 @@ const checkServerHealth = (server) => {
     healthRequest.on("timeout", () => {
       server.healthy = false;
       healthRequest.destroy();
+      console.log(
+        `Health check for server ${server.hostname}:${server.port} has timed out; setting the server as unhealthy`
+      );
       resolve(server); // resolve on timeout
     });
 
     healthRequest.on("error", (err) => {
       server.healthy = false;
+      console.error(
+        `Health check error for server ${server.hostname}:${server.port} - ${err.name}: ${err.message}`
+      );
+      if (err.code) {
+        console.error(`Error code: ${err.code}`);
+      }
+      if (err.stack) {
+        console.error(err.stack);
+      }
       resolve(server); // resolve on error
     });
 
@@ -79,9 +100,6 @@ const checkServerHealth = (server) => {
 const healthCheckInterval = setInterval(async () => {
   console.log("Running health checks...");
   await Promise.all(servers.map(checkServerHealth));
-  // servers.forEach((server) => {
-  //   return checkServerHealth(server);
-  // });
 }, 10000);
 
 // Cleanup on exit
@@ -139,6 +157,9 @@ app.all(/\/(.*)/, (req, res) => {
       .setHeader("retry-after", 15)
       .send("No healthy servers available\n");
   }
+  console.log(
+    `Forwarding request to backend: ${server.hostname}:${server.port}`
+  );
 
   const options = {
     hostname: server.hostname,
@@ -165,11 +186,13 @@ app.all(/\/(.*)/, (req, res) => {
     options.headers["x-forwarded-host"] = req.headers.host;
   }
 
+  const start = Date.now();
   const proxy = http.request(options, (proxyRes) => {
     // receive its response
     console.log(
       `\nResponse from server: HTTP/${proxyRes.httpVersion} ${proxyRes.statusCode} ${proxyRes.statusMessage}\n`
     );
+
 
     // collect the response body
     let bodyData = "";
@@ -178,6 +201,11 @@ app.all(/\/(.*)/, (req, res) => {
     });
 
     proxyRes.on("end", () => {
+      const duration = Date.now() - start;
+      console.log(
+        `Backend ${server.hostname}:${server.port} responded in ${duration} ms`
+      );
+
       // log the response
       console.log(bodyData);
 
@@ -194,14 +222,32 @@ app.all(/\/(.*)/, (req, res) => {
 
     // handle error while receiving the response
     proxyRes.on("error", (err) => {
-      console.error("Proxy response error:", err);
+      console.error(
+        `Proxy response error from server ${server.hostname}:${server.port} - ${err.name}: ${err.message}`
+      );
+      if (err.code) {
+        console.error(`Error code: ${err.code}`);
+      }
+      if (err.stack) {
+        console.error(err.stack);
+      }
+
       res.status(500).end();
     });
   });
 
   // handle error while sending the request
   proxy.on("error", (err) => {
-    console.error("Proxy error: ", err);
+    console.error(
+      `Proxy request connection error from server ${server.hostname}:${server.port} - ${err.name}: ${err.message}`
+    );
+    if (err.code) {
+      console.error(`Error code: ${err.code}`);
+    }
+    if (err.stack) {
+      console.error(err.stack);
+    }
+
     // Mark server as unhealthy immediately on proxy error
     server.healthy = false;
     if (!res.headersSent) {

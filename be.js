@@ -15,15 +15,18 @@ app.get("/", (req, res) => {
   requestsCounter += 1;
   console.log(requestsCounter);
 
+  const start = Date.now();
   // Simulate long processing
   setTimeout(() => {
     res.send(`Hello From Backend Server ${port}\n`);
+    const duration = Date.now() - start;
+    console.log(`Processed request in ${duration} ms`);
   }, 10_000);
 });
 
 app.get("/health", (req, res) => {
-  console.log("health checked and returning success");
   res.status(200).end();
+  console.log("health checked and returning success");
 });
 
 app.listen(port, () => {
