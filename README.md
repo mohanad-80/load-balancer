@@ -2,6 +2,10 @@
 
 A simple HTTP load balancer built with Node.js and Express. It distributes incoming requests to multiple backend servers using a round-robin algorithm and performs periodic health checks to ensure requests are only sent to healthy servers.
 
+## Architecture Diagram
+
+![Load Balancer Architecture](./load-balancer-diagram.svg)
+
 ## Features
 
 - **Round-robin load balancing** across multiple backend servers
@@ -15,6 +19,7 @@ A simple HTTP load balancer built with Node.js and Express. It distributes incom
 - **Sanitize the client request and response headers for security**
 - **Customizable keep-alive and maxSockets settings**
 - **Detailed logging for errors and useful info**
+
 ## Getting Started
 
 ### Prerequisites
